@@ -1,0 +1,35 @@
+<Window x:Class="TokenLimitWatch.Poc.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Token Limit Watch PoC — 사용량 조회 경로 검증"
+        Width="860" Height="720" MinWidth="640"
+        Background="#FAFAFA" FontFamily="Pretendard, Malgun Gothic, Segoe UI" FontSize="13"
+        Foreground="{StaticResource Ink}">
+    <DockPanel Margin="16">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <TextBlock FontSize="18" FontWeight="Bold" Text="사용량 조회 경로 비교" />
+            <TextBlock Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"
+                       Text="같은 로그인 세션으로 두 방식을 비교합니다. A: 숨긴 WebView2 안에서 fetch()  ·  B: 쿠키를 실은 HttpClient 직접 요청. 결과는 data\poc-results.jsonl에 저장됩니다(토큰·이메일 등은 가림)." />
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                <CheckBox x:Name="ShowBrowser" Content="숨긴 브라우저 창 보기 (Cloudflare 확인 화면 점검용)" VerticalAlignment="Center"
+                          Checked="ShowBrowser_Changed" Unchecked="ShowBrowser_Changed" />
+                <TextBlock Text="  반복 횟수" VerticalAlignment="Center" Margin="16,0,6,0" />
+                <TextBox x:Name="RepeatCount" Text="5" Width="40" VerticalContentAlignment="Center" />
+                <TextBlock Text="  간격(초)" VerticalAlignment="Center" Margin="12,0,6,0" />
+                <TextBox x:Name="RepeatGap" Text="5" Width="40" VerticalContentAlignment="Center" />
+            </StackPanel>
+        </StackPanel>
+
+        <ItemsControl x:Name="ServiceList" DockPanel.Dock="Top" />
+
+        <DockPanel Margin="0,12,0,0">
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                <Button DockPanel.Dock="Right" Content="로그 폴더 열기" Click="OpenData_Click" Margin="0" />
+                <TextBlock Text="로그" FontWeight="SemiBold" VerticalAlignment="Center" />
+            </DockPanel>
+            <TextBox x:Name="LogBox" IsReadOnly="True" FontFamily="Consolas, D2Coding, Malgun Gothic" FontSize="12"
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap"
+                     BorderBrush="{StaticResource Line}" Background="White" Padding="8" />
+        </DockPanel>
+    </DockPanel>
+</Window>

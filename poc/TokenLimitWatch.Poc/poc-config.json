@@ -1,0 +1,23 @@
+{
+  "services": [
+    {
+      "id": "claude",
+      "name": "Claude",
+      "origin": "https://claude.ai",
+      "loginUrl": "https://claude.ai/login",
+      "sessionCookiePrefix": "sessionKey",
+      "extraEndpoints": []
+    },
+    {
+      "id": "chatgpt",
+      "name": "ChatGPT",
+      "origin": "https://chatgpt.com",
+      "loginUrl": "https://chatgpt.com/auth/login",
+      "sessionCookiePrefix": "__Secure-next-auth.session-token",
+      "extraEndpoints": [
+        "/backend-api/me",
+        "/backend-api/models"
+      ]
+    }
+  ]
+}

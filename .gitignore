@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+*.user
+# PoC 실행 데이터: 로그인 세션과 조회 결과가 들어 있으니 커밋하지 않습니다.
+data/
+dist/
+# Work-in-progress captures (repo screenshots live in docs/screenshots)
+review/
+design-updated-dashboard.jpg
