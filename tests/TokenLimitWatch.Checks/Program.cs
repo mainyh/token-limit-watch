@@ -24,6 +24,9 @@ Check(!unauthenticated.Success && unauthenticated.LoginRequired, "empty session 
 var claude = new ServiceConfig { Id = "claude" };
 var selected = await UsageProvider.ReadAsync(claude,new Fake(new() { Status = 200, Body = """[{"uuid":"one","name":"First"},{"uuid":"two","name":"Second"}]""" },new() { Status = 200, Body = """{"five_hour":{"utilization":12,"resets_at":null}}""" }),"two");
 Check(selected.SelectedOrg == "two" && selected.Limits[0].Remaining == 88, "selected organization used");
+// The checks project does not copy poc-config.json, so this exercises the built-in fallback.
+var fallback = PocConfig.LoadOrDefault();
+Check(fallback.Services.Select(s => s.Id).SequenceEqual(new[]{"claude","chatgpt"}) && fallback.Services.All(s => s.Origin.StartsWith("https://") && s.SessionCookiePrefix.Length > 0), "missing config falls back to built-in services");
 Check(FetchResult.LooksBlocked(403,"<title>Just a moment</title>",null), "challenge detected");
 var plan = ChatGptPlanUsage.Parse("""[{"name":"5시간 단위 한도","remaining":77,"resetTitle":"2026년 11월 23일 월요일 오후 12시 29분 38초 GMT+9"},{"name":"주간 사용 한도","remaining":96,"resetTitle":"2026년 11월 26일 목요일 오후 9시 3분 1초 GMT+9"}]""");
 Check(plan[0].Used == 23 && plan[0].Remaining == 77, "shared five-hour percentage");

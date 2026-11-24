@@ -22,7 +22,7 @@ public sealed partial class MonitorWindow
     private static readonly Brush Line = Ink("#E4E4E7");
     private static readonly Brush Divider = Ink("#F4F4F5");
     private static readonly Brush Purple = Ink("#5B5BD6");
-    private Border? _footerChrome, _shellRoot, _miniRoot, _logo;
+    private Border? _footerChrome, _shellRoot, _miniRoot, _logo, _top;
     private readonly StackPanel _miniBody = new();
     private Button? _back, _pin, _minimize, _close;
     private TextBlock? _version;
@@ -44,8 +44,8 @@ public sealed partial class MonitorWindow
         using(var embedded = new System.Drawing.Icon(stream!)) _tray.Icon = (System.Drawing.Icon)embedded.Clone();
 
         var shell = new DockPanel();
-        var header = new DockPanel { Height = 44, Background = Brushes.White, LastChildFill = true };
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0,7,8,7) };
+        var header = new DockPanel { Height = 40, Background = Brushes.White, LastChildFill = true };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0,5,8,5) };
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         _version = Label($"v{version?.Major}.{version?.Minor}.{version?.Build} · Portable",12,"#71717A");
         _version.VerticalAlignment = VerticalAlignment.Center; _version.Margin = new Thickness(0,0,8,0);
@@ -61,7 +61,7 @@ public sealed partial class MonitorWindow
         _logo = Logo(22,14); _logo.Margin = new Thickness(16,0,8,0); brand.Children.Add(_logo);
         _heading.FontFamily = Typography.Ui; brand.Children.Add(_heading); header.Children.Add(brand);
         header.MouseLeftButtonDown += (_,e) => Drag(e);
-        var top = new Border { Child = header, BorderThickness = new Thickness(0,0,0,1), BorderBrush = Divider };
+        var top = _top = new Border { Child = header, BorderThickness = new Thickness(0,0,0,1), BorderBrush = Divider };
         DockPanel.SetDock(top,Dock.Top); shell.Children.Add(top);
 
         _footer.Orientation = Orientation.Vertical; _footer.HorizontalAlignment = HorizontalAlignment.Stretch;
@@ -81,24 +81,48 @@ public sealed partial class MonitorWindow
     // The dashboard opens tall enough to show every card without scrolling (capped by the screen).
     // Once the user resizes the window by hand, their size wins and auto-fit stops.
     private bool _autoFit = true, _centered;
-    private double _fitHeight = 720;
-    private void WatchManualResize() => SizeChanged += (_,e) =>
+    private double _fitHeight = 720, _fitWidth = 400;
+    // Dashboard density, picked so every card fits the screen (e.g. 1440×852 DIP at 2880×1800, 200%):
+    // 0 = design spacing, 1 = compact spacing, 2 = compact with service cards side by side.
+    private int _density;
+    private const double NarrowWidth = 400, WideWidth = 760;
+    private bool Compact => _density > 0;
+    private int Columns => _density == 2 ? 2 : 1;
+    // WM_SIZING comes only from the user dragging a window edge, never from code setting Width/Height,
+    // so DPI rounding or layout passes can no longer switch auto-fit off by accident.
+    private void WatchManualResize() => SourceInitialized += (_,_) =>
+        System.Windows.Interop.HwndSource.FromHwnd(new System.Windows.Interop.WindowInteropHelper(this).Handle)?.AddHook((IntPtr hwnd,int msg,IntPtr wParam,IntPtr lParam,ref bool handled) =>
+        {
+            if(msg == 0x0214 && !_mini) _autoFit = false;
+            return IntPtr.Zero;
+        });
+    private static double MaxFitHeight => SystemParameters.WorkArea.Height - 16;
+    private double DashboardHeight(double width)
     {
-        if(IsLoaded && !_mini && (Math.Abs(e.NewSize.Height-_fitHeight)>1 || Math.Abs(e.NewSize.Width-400)>1)) _autoFit = false;
-    };
+        var size = new Size(width - 2,double.PositiveInfinity);
+        _top!.Measure(size); _body.Measure(size); _footerChrome!.Measure(size);
+        return _top.DesiredSize.Height + _footerChrome.DesiredSize.Height + _body.DesiredSize.Height + 2;
+    }
     private void FitDashboard()
     {
         if(_mini || !_autoFit || _page != "dashboard" || !IsLoaded) return;
-        var width = Width - 2;
-        _body.Measure(new Size(width,double.PositiveInfinity));
-        _footerChrome!.Measure(new Size(width,double.PositiveInfinity));
         var area = SystemParameters.WorkArea;
-        var need = 45 + _footerChrome.DesiredSize.Height + _body.DesiredSize.Height + 2;
-        var height = Math.Ceiling(Math.Clamp(need,MinHeight,area.Height - 16));
-        _fitHeight = height;
+        var width = Columns == 2 ? WideWidth : NarrowWidth;
+        // +1: at 150%/200% pixel rounding can shave a fraction of a DIP off the viewport and show a scrollbar.
+        var height = Math.Ceiling(Math.Clamp(DashboardHeight(width) + 1,MinHeight,Math.Max(MinHeight,MaxFitHeight)));
+        _fitWidth = width; _fitHeight = height;        if(Math.Abs(width - ActualWidth) >= 1) Width = width;
         if(Math.Abs(height - ActualHeight) >= 1) Height = height;
-        if(!_centered) { _centered = true; Top = area.Top + (area.Height - height) / 2; }
-        else if(Top + height > area.Bottom - 8) Top = Math.Max(area.Top + 8,area.Bottom - height - 8);
+        if(!_centered)
+        {
+            _centered = true;
+            Top = area.Top + (area.Height - height) / 2;
+            Left = area.Left + (area.Width - width) / 2;
+        }
+        else
+        {
+            if(Top + height > area.Bottom - 8) Top = Math.Max(area.Top + 8,area.Bottom - height - 8);
+            if(Left + width > area.Right - 8) Left = Math.Max(area.Left + 8,area.Right - width - 8);
+        }
     }
 
     private void Drag(System.Windows.Input.MouseButtonEventArgs e)
@@ -118,7 +142,7 @@ public sealed partial class MonitorWindow
         else
         {
             Content = _shellRoot; SizeToContent = SizeToContent.Manual; ResizeMode = ResizeMode.CanResize;
-            MinWidth = 320; MinHeight = 336; Width = 400; Height = _fitHeight; Background = Ink("#FAFAFA"); Topmost = _settings.AlwaysOnTop;
+            MinWidth = 320; MinHeight = 336; Width = _fitWidth; Height = _fitHeight; Background = Ink("#FAFAFA"); Topmost = _settings.AlwaysOnTop;
         }
     }
 
@@ -195,11 +219,11 @@ public sealed partial class MonitorWindow
     };
     private static string State(double? used) => used is null ? "확인 불가" : used >= 90 ? "임박" : used >= 70 ? "주의" : "여유";
     private static string BarColor(double? used) => used is null ? "#D4D4D8" : used >= 90 ? "#EB4444" : used >= 70 ? "#F69800" : "#5B5BD6";
-    private UIElement Badge(string text)
+    private UIElement Badge(string text,double height=24)
     {
         var (fg,bg)=Tone(text);
         var label=Label(T(text),12,fg,true); label.VerticalAlignment=VerticalAlignment.Center; label.TextWrapping=TextWrapping.NoWrap;
-        return new Border { Child=label,Background=Ink(bg),CornerRadius=new CornerRadius(4),Padding=new Thickness(8,0,8,0),Height=24,VerticalAlignment=VerticalAlignment.Center };
+        return new Border { Child=label,Background=Ink(bg),CornerRadius=new CornerRadius(4),Padding=new Thickness(8,0,8,0),Height=height,VerticalAlignment=VerticalAlignment.Center };
     }
     private static bool Connected(Slot slot) => !slot.LoginRequired && (slot.LastUpdate.HasValue || slot.Message == "연결됨");
     private static string Letter(Slot slot) => slot.Config.Id == "claude" ? "C" : "G";
@@ -295,22 +319,45 @@ public sealed partial class MonitorWindow
     // ---------- 03 대시보드 ----------
     private void DesignDashboard()
     {
+        DashboardFooter();
+        var services=Selected.Count();
+        int[] levels;
+        if(_autoFit) levels=services>1&&SystemParameters.WorkArea.Width-16>=WideWidth ? new[]{0,1,2} : new[]{0,1};
+        else levels=new[]{_density==2&&(services<2||ActualWidth<WideWidth-60) ? 1 : _density}; // keep the user's window size
+        foreach(var level in levels)
+        {
+            _density=level;
+            DashboardCards();
+            if(level==levels[^1]||DashboardHeight(Columns==2?WideWidth:NarrowWidth)+1<=MaxFitHeight) break;
+        }
+        FitDashboard();
+    }
+    private void DashboardCards()
+    {
+        _body.Children.Clear();_countdowns.Clear();
+        var compact=Compact;
+        double gap=compact?8:10,headGap=compact?8:10,ruleGap=compact?6:10,rowGap=compact?4:6,barGap=compact?6:8,badge=compact?20:22;
+        _body.Margin=new Thickness(compact?10:12);
+        _footerChrome!.Padding=compact?new Thickness(12,6,12,6):new Thickness(16,8,12,8);
+        Grid? columns=null;
+        if(Columns==2){columns=new Grid();columns.ColumnDefinitions.Add(new());columns.ColumnDefinitions.Add(new());_body.Children.Add(columns);}
+        var cardIndex=0;
         foreach(var slot in Selected)
         {
             var content=new StackPanel();
-            var head=new StackPanel{Orientation=Orientation.Horizontal,Margin=new Thickness(0,0,0,12)};
-            var tile=Tile(Letter(slot),28,"#F4F4F5",14);tile.Margin=new Thickness(0,0,10,0);head.Children.Add(tile);
+            var head=new StackPanel{Orientation=Orientation.Horizontal,Margin=new Thickness(0,0,0,headGap)};
+            var tile=Tile(Letter(slot),compact?24:26,"#F4F4F5",14);tile.Margin=new Thickness(0,0,10,0);head.Children.Add(tile);
             var title=Label(slot.Config.Name,15,bold:true);title.VerticalAlignment=VerticalAlignment.Center;head.Children.Add(title);content.Children.Add(head);
-            if(slot.Config.Id=="chatgpt") {var note=Label(T("공유 플랜 한도 · Chat 대화 제외"),12,"#71717A");note.Margin=new Thickness(0,-6,0,12);content.Children.Add(note);}
+            if(slot.Config.Id=="chatgpt") {var note=Label(T("공유 플랜 한도 · Chat 대화 제외"),12,"#71717A");note.LineHeight=16;note.Margin=new Thickness(0,-headGap/2,0,headGap);content.Children.Add(note);}
             var limits=DisplayPolicy.VisibleLimits(slot.Limits,false);
             for(int index=0;index<limits.Count;index++)
             {
-                if(index>0) content.Children.Add(Rule(12));
+                if(index>0) content.Children.Add(Rule(ruleGap));
                 var limit=limits[index];
-                var row=new DockPanel{Margin=new Thickness(0,0,0,8)};
-                var badge=Badge(State(limit.Used));DockPanel.SetDock(badge,Dock.Right);row.Children.Add(badge);
+                var row=new DockPanel{Margin=new Thickness(0,0,0,rowGap)};
+                var state=Badge(State(limit.Used),badge);DockPanel.SetDock(state,Dock.Right);row.Children.Add(state);
                 var name=Label(T(limit.Name),14,bold:true);name.VerticalAlignment=VerticalAlignment.Center;row.Children.Add(name);content.Children.Add(row);
-                var bar=new ProgressBar{Minimum=0,Maximum=100,Value=Math.Clamp(limit.Used??0,0,100),Foreground=Ink(BarColor(limit.Used)),Height=6,Margin=new Thickness(0,0,0,10)};
+                var bar=new ProgressBar{Minimum=0,Maximum=100,Value=Math.Clamp(limit.Used??0,0,100),Foreground=Ink(BarColor(limit.Used)),Height=6,Margin=new Thickness(0,0,0,barGap)};
                 AutomationProperties.SetName(bar,F("{0} 사용량 {1}",T(limit.Name),limit.UsedText));content.Children.Add(bar);
                 var grid=new Grid();grid.ColumnDefinitions.Add(new());grid.ColumnDefinitions.Add(new());grid.RowDefinitions.Add(new());grid.RowDefinitions.Add(new());
                 Metric(grid,T("사용량"),limit.UsedText,0,0,true,limit.Used is null);Metric(grid,T("남은량"),limit.RemainingText,0,1,true,limit.Remaining is null);
@@ -320,13 +367,25 @@ public sealed partial class MonitorWindow
             }
             if(slot.LoginRequired||slot.Message.Contains("실패"))
             {
-                var message=Label(T(slot.Message),12,"#71717A");message.Margin=new Thickness(0,10,0,0);content.Children.Add(message);
+                var message=Label(T(slot.Message),12,"#71717A");message.Margin=new Thickness(0,compact?6:10,0,0);content.Children.Add(message);
                 if(slot.LoginRequired){var login=Link(T("로그인"),()=>Render("accounts"));login.HorizontalAlignment=HorizontalAlignment.Left;login.Margin=new Thickness(-4,2,0,0);content.Children.Add(login);}
             }
-            _body.Children.Add(Box(content,new Thickness(16,14,16,14)));
+            var box=Box(content,compact?new Thickness(16,10,16,10):new Thickness(16,12,16,12));box.Margin=new Thickness(0,0,0,gap);
+            if(columns is null) _body.Children.Add(box);
+            else
+            {
+                // Side by side: cards in one row share its height; a third service would start a new row.
+                int column=cardIndex%2,row=cardIndex/2;
+                if(columns.RowDefinitions.Count<=row) columns.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
+                box.Margin=new Thickness(column==0?0:gap/2,0,column==0?gap/2:0,gap);
+                Grid.SetColumn(box,column);Grid.SetRow(box,row);columns.Children.Add(box);
+            }
+            cardIndex++;
         }
-        if(!Selected.Any()) {Hero("TOKEN LIMIT WATCH",T("사용량을 한눈에"),T("AI 서비스를 연결하면 사용량과 초기화 시간을 확인할 수 있어요."));_body.Children.Add(ActionButton(T("서비스 선택"),()=>Render("services"),true));}
-
+        if(cardIndex==0) {Hero("TOKEN LIMIT WATCH",T("사용량을 한눈에"),T("AI 서비스를 연결하면 사용량과 초기화 시간을 확인할 수 있어요."));_body.Children.Add(ActionButton(T("서비스 선택"),()=>Render("services"),true));}
+    }
+    private void DashboardFooter()
+    {
         var footer=new DockPanel();
         var refresh=ActionButton(T("지금 갱신"),RefreshAll);var refreshBody=new StackPanel{Orientation=Orientation.Horizontal};refreshBody.Children.Add(Glyph("refresh",14,"#18181B"));
         var refreshText=Label(T("지금 갱신"),13,bold:true);refreshText.Margin=new Thickness(6,0,0,0);refreshText.VerticalAlignment=VerticalAlignment.Center;refreshBody.Children.Add(refreshText);
@@ -339,13 +398,12 @@ public sealed partial class MonitorWindow
         _refreshLabel=Label("",12,"#71717A");_refreshLabel.TextWrapping=TextWrapping.NoWrap;_refreshLabel.TextTrimming=TextTrimming.CharacterEllipsis;_refreshLabel.Margin=new Thickness(8,0,8,0);_refreshLabel.VerticalAlignment=VerticalAlignment.Center;footer.Children.Add(_refreshLabel);
         UpdateRefreshLabel();
         _footer.Children.Add(footer);
-        FitDashboard();
     }
     private TextBlock Metric(Grid grid,string label,string value,int row,int col,bool percentage,bool unknown)
     {
-        var panel=new StackPanel{Margin=new Thickness(col==0?0:6,0,col==0?6:0,row==0?10:0)};
-        panel.Children.Add(Label(label,12,"#71717A"));
-        var text=Label("",unknown?14:percentage?16:15,unknown?"#71717A":"#18181B",weight:unknown?FontWeights.Medium:FontWeights.Bold);text.LineHeight=22;text.TextWrapping=TextWrapping.NoWrap;
+        var panel=new StackPanel{Margin=new Thickness(col==0?0:6,0,col==0?6:0,row==0?(Compact?4:8):0)};
+        var caption=Label(label,12,"#71717A");caption.LineHeight=Compact?15:16;panel.Children.Add(caption);
+        var text=Label("",unknown?14:percentage?16:15,unknown?"#71717A":"#18181B",weight:unknown?FontWeights.Medium:FontWeights.Bold);text.LineHeight=Compact?19:21;text.TextWrapping=TextWrapping.NoWrap;
         if(percentage&&!unknown&&value.EndsWith('%'))
         {
             text.Inlines.Add(new Run(value[..^1]));

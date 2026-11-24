@@ -18,7 +18,8 @@ public static class Environments
 
     public static Task<CoreWebView2Environment> GetAsync(ServiceConfig s)
     {
-        if (!Cache.TryGetValue(s.Id, out var task))
+        // A failed creation is not cached, so the next poll can try again instead of failing until restart.
+        if (!Cache.TryGetValue(s.Id, out var task) || task.IsFaulted || task.IsCanceled)
         {
             task = CoreWebView2Environment.CreateAsync(null, Paths.WebViewProfile(s));
             Cache[s.Id] = task;

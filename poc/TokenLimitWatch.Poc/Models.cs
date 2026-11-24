@@ -24,6 +24,32 @@ public sealed class PocConfig
         return JsonSerializer.Deserialize<PocConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                ?? throw new InvalidDataException("poc-config.json을 읽지 못했습니다.");
     }
+
+    /// <summary>
+    /// poc-config.json next to the exe overrides the built-in services. A missing, unreadable
+    /// or empty file falls back to <see cref="Default"/> instead of stopping the app.
+    /// </summary>
+    public static PocConfig LoadOrDefault()
+    {
+        try
+        {
+            var config = Load();
+            if (config.Services is { Count: > 0 } && config.Services.All(s => s != null && !string.IsNullOrEmpty(s.Id) && !string.IsNullOrEmpty(s.Origin)))
+                return config;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException) { }
+        return Default();
+    }
+
+    /// <summary>Same values as the shipped poc-config.json.</summary>
+    public static PocConfig Default() => new()
+    {
+        Services =
+        {
+            new() { Id = "claude", Name = "Claude", Origin = "https://claude.ai", LoginUrl = "https://claude.ai/login", SessionCookiePrefix = "sessionKey" },
+            new() { Id = "chatgpt", Name = "ChatGPT", Origin = "https://chatgpt.com", LoginUrl = "https://chatgpt.com/auth/login", SessionCookiePrefix = "__Secure-next-auth.session-token", ExtraEndpoints = { "/backend-api/me", "/backend-api/models" } },
+        },
+    };
 }
 
 public static class Paths

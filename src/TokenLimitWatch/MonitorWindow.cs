@@ -30,7 +30,7 @@ public sealed partial class MonitorWindow : Window
     }
 
     private readonly Settings _settings = Settings.Load();
-    private readonly List<Slot> _slots = PocConfig.Load().Services.Select(s => new Slot(s)).ToList();
+    private readonly List<Slot> _slots = PocConfig.LoadOrDefault().Services.Select(s => new Slot(s)).ToList();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly Forms.NotifyIcon _tray = new() { Text = AppName, Visible = true };
     private readonly StackPanel _body = new();
@@ -236,7 +236,7 @@ public sealed partial class MonitorWindow : Window
     {
         try { File.AppendAllText(Path.Combine(Paths.Data,"monitor.jsonl"),JsonSerializer.Serialize(new { at = DateTimeOffset.Now, service = slot.Config.Id, success, status }) + Environment.NewLine); } catch { }
     }
-    private void Restore() { Show(); WindowState = WindowState.Normal; Activate(); }
+    internal void Restore() { Show(); WindowState = WindowState.Normal; Activate(); }
     private void Exit() { _exit = true; Close(); }
     private void OnClosing(object? sender, CancelEventArgs e)
     {

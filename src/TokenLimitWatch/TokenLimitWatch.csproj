@@ -9,7 +9,7 @@
     <AssemblyName>TokenLimitWatch</AssemblyName>
     <Product>Token Limit Watch</Product>
     <ApplicationIcon>Assets/TokenLimitWatch.ico</ApplicationIcon>
-    <Version>0.2.6</Version>
+    <Version>0.2.7</Version>
     <!-- Release zip: only the exe, its config and the font license (no .pdb or package .xml docs). -->
     <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
     <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>

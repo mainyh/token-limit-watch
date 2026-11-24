@@ -40,7 +40,7 @@ The .NET runtime is bundled, so nothing else needs to be installed.
 3. Pick the services to monitor, then sign in to each one with your **email address**. Google sign-in is not supported.
 4. The dashboard opens and starts checking. To change the language, go to **Settings → Language**.
 
-Keep `poc-config.json` next to the exe; the app reads service addresses from it.
+`poc-config.json` next to the exe overrides the service addresses; if it is missing or unreadable, the built-in addresses are used. Launching the exe again while it runs brings the existing window to the front instead of starting a second copy.
 
 ### Privacy and how it works
 
@@ -107,7 +107,7 @@ Token Limit Watch는 Claude와 ChatGPT 구독의 **사용 한도가 얼마나 �
 3. 모니터링할 서비스를 고르고 각 서비스에 **이메일 주소로** 로그인합니다. Google 계정 로그인은 지원하지 않습니다.
 4. 대시보드가 열리고 조회를 시작합니다.
 
-필요 조건은 Windows 10/11(x64)과 Microsoft Edge WebView2 런타임입니다(Windows 11에는 기본 설치). .NET은 실행 파일에 포함되어 있습니다. `poc-config.json`은 exe와 같은 폴더에 두세요.
+필요 조건은 Windows 10/11(x64)과 Microsoft Edge WebView2 런타임입니다(Windows 11에는 기본 설치). .NET은 실행 파일에 포함되어 있습니다. exe 옆의 `poc-config.json`으로 서비스 주소를 바꿀 수 있고, 파일이 없거나 읽을 수 없으면 내장 주소를 씁니다. 실행 중에 exe를 다시 실행하면 새로 뜨지 않고 기존 창을 앞으로 가져옵니다.
 
 ### 개인정보와 동작 방식
 
@@ -134,6 +134,7 @@ Token Limit Watch는 Claude와 ChatGPT 구독의 **사용 한도가 얼마나 �
 
 | 버전 | 내용 |
 | --- | --- |
+| 0.2.7 | 고해상도·고배율(예: 2880×1800, 200%)에서도 대시보드가 화면에 들어가도록 간격 축소·자동 촘촘/좌우 배치, 중복 실행 방지, `poc-config.json` 없이도 실행, WebView2 시작 실패 후 자동 재시도 |
 | 0.2.6 | 설정에서 한국어·English 선택, README 영문 소개 |
 | 0.2.5 | 앱 이름을 Token Limit Watch로 변경, 이전 자동 실행 항목 이전 |
 | 0.2.4 | 시작할 때 대시보드가 스크롤 없이 보이도록 창 높이 자동 조정 |

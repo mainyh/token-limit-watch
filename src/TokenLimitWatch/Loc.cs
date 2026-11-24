@@ -50,6 +50,7 @@ public static class Loc
         ["다시 로그인하세요"] = "Please sign in again",
         ["조회 실패 · 5분 후 재시도"] = "Update failed · retrying in 5 min",
         ["작업을 완료하지 못했습니다."] = "Could not complete the action.",
+        ["앱을 시작하지 못했습니다."] = "Could not start the app.",
 
         // Tray and notifications
         ["대시보드 열기"] = "Open dashboard",
